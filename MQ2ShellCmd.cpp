@@ -12,9 +12,10 @@
 #include <windows.h>
 #include <map>
 #include <tchar.h>
-#include "../MQ2Plugin.h"
+#include <mq/Plugin.h>
 
 PreSetup("MQ2ShellCmd");
+PLUGIN_VERSION(2020.0801);
 
 namespace KnightlyShellCmd {
 	bool boolDebug = false;
@@ -37,7 +38,7 @@ namespace KnightlyShellCmd {
 		// Message is for logging a standard message.
 		// All other logging calls go through this base.
 		static void Message(std::string strMessage) {
-			CHAR pcharMessage[MAX_STRING];
+			char pcharMessage[MAX_STRING];
 			strMessage = "\ay[\agMQ2ShellCmd\ay]\aw ::: \ao" + strMessage;
 			strcpy_s(pcharMessage, strMessage.c_str());
 			WriteChatf(pcharMessage);
@@ -100,7 +101,7 @@ namespace KnightlyShellCmd {
 
 				LPSTR messageBuffer = nullptr;
 				size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-					NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
+					nullptr, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, nullptr);
 
 				std::string message(messageBuffer, size);
 
@@ -112,7 +113,7 @@ namespace KnightlyShellCmd {
 
 			// Basically just makes sure the process exits and then handles
 			// closing ...well, the handles
-			static bool UpdateStatus(std::string strProcessName) {
+			static bool UpdateStatus(const std::string& strProcessName) {
 				// Check if we even have a process named this
 				if (KnightlyShellCmd::ProcessTracker.count(strProcessName) == 1)
 				{
@@ -173,24 +174,24 @@ namespace KnightlyShellCmd {
 }
 
 // Define the Cmd Command
-PLUGIN_API VOID CmdCommand(PSPAWNINFO pSpawn, PCHAR szLine)
+PLUGIN_API void CmdCommand(SPAWNINFO* pSpawn, char* szLine)
 {
-	CHAR szParam1[MAX_STRING] = { 0 };
-	CHAR szParam2[MAX_STRING] = { 0 };
+	char szParam1[MAX_STRING] = { 0 };
+	char szParam2[MAX_STRING] = { 0 };
 
-	std::string strLine = szLine; 
+	const std::string strLine = szLine; 
 	std::string strCmdCommand;
 	// Put the first parameter in szParam1, include quotes
 	GetArg(szParam1, szLine, 1, 1);
 	GetArg(szParam2, szLine, 2, 1);
 
 	// If the first parameter is "help" or empty then show the help info
-	if (szParam1 && (!strcmp(szParam1, "help") || strlen(szParam1) == 0)) {
+	if (szParam1[0] != '\0' && (!strcmp(szParam1, "help") || strlen(szParam1) == 0)) {
 		KnightlyShellCmd::Log::ShowHelp();
 	}
 	else {
 		// Check to make sure we have at least 2 parameters (if not we don't have enough to process a command)
-		if (szParam2 && strlen(szParam2) > 0) {
+		if (szParam2[0] != '\0') {
 			char* szComSpec = nullptr;
 			size_t iSize = 0;
 			if (_dupenv_s(&szComSpec, &iSize, "ComSpec") == 0 && szComSpec != nullptr)
@@ -217,16 +218,16 @@ PLUGIN_API VOID CmdCommand(PSPAWNINFO pSpawn, PCHAR szLine)
 				// Convert the full string to unicode and store it in wstrFullCommand. (Only needed for Unicode)
 				//MultiByteToWideChar(CP_ACP, 0, KnightlyShellCmd::ProcessTracker[strProcessName].strFullCommand.c_str(), (int)KnightlyShellCmd::ProcessTracker[strProcessName].strFullCommand.length() + 1, &KnightlyShellCmd::ProcessTracker[strProcessName].wstrFullCommand[0], MultiByteToWideChar(CP_ACP, 0, KnightlyShellCmd::ProcessTracker[strProcessName].strFullCommand.c_str(), (int)KnightlyShellCmd::ProcessTracker[strProcessName].strFullCommand.length() + 1, 0, 0));
 
-				if (!CreateProcess(NULL, // Application Name - Null says use command line processor
-					(LPSTR)KnightlyShellCmd::ProcessTracker[strProcessName].strFullCommand.c_str(), // Command line to run
-					NULL,           // Process Attributes - handle not inheritable
-					NULL,           // Thread Attributes - handle not inheritable
-					FALSE,          // Set handle inheritance to FALSE
+				if (!CreateProcess(nullptr, // Application Name - Null says use command line processor
+					const_cast<LPSTR>(KnightlyShellCmd::ProcessTracker[strProcessName].strFullCommand.c_str()), // Command line to run
+					nullptr,            // Process Attributes - handle not inheritable
+					nullptr,            // Thread Attributes - handle not inheritable
+					false,              // Set handle inheritance to FALSE
 					CREATE_NEW_CONSOLE, // Creation Flags - Create a new console window instead of running in the existing console
-					NULL,           // Use parent's environment block
-					NULL,           // Use parent's starting directory 
-					&KnightlyShellCmd::ProcessTracker[strProcessName].siStartupInfo,		// Pointer to STARTUPINFO structure
-					&KnightlyShellCmd::ProcessTracker[strProcessName].piProcessInfo)		// Pointer to PROCESS_INFORMATION structure
+					nullptr,            // Use parent's environment block
+					nullptr,            // Use parent's starting directory 
+					&KnightlyShellCmd::ProcessTracker[strProcessName].siStartupInfo,  // Pointer to STARTUPINFO structure
+					&KnightlyShellCmd::ProcessTracker[strProcessName].piProcessInfo)  // Pointer to PROCESS_INFORMATION structure
 					)
 				{
 					KnightlyShellCmd::Log::Error("CreateProcess failed (" + KnightlyShellCmd::ProcessHandling::GetLastErrorAsString() + ")");
@@ -251,74 +252,67 @@ PLUGIN_API VOID CmdCommand(PSPAWNINFO pSpawn, PCHAR szLine)
 class MQ2ShellCmdType *pShellCmdType = nullptr;
 class MQ2ShellCmdType : public MQ2Type {
 private:
-	CHAR _szBuffer[MAX_STRING];
+	char _szBuffer[MAX_STRING] = { 0 };
 public:
 	enum Members {
 		Command,
-		command,
 		Full,
-		full,
 		Status,
-		status,
-		Kill,
-		kill
+		Kill
 	};
 
 	MQ2ShellCmdType() : MQ2Type("ShellCmd") {
 		TypeMember(Command);
-		TypeMember(command);
+		AddMember(Command, "command");
 		TypeMember(Full);
-		TypeMember(full);
+		AddMember(Full, "full");
 		TypeMember(Status);
-		TypeMember(status);
+		AddMember(Status, "status");
 		TypeMember(Kill);
-		TypeMember(kill);
+		AddMember(Kill, "kill");
 	}
 
-	bool GetMember(MQ2VARPTR VarPtr, char* Member, char* Index, MQ2TYPEVAR &Dest) {
+	virtual bool GetMember(MQVarPtr VarPtr, const char* Member, char* Index, MQTypeVar& Dest) override {
 		_szBuffer[0] = '\0';
 		// Command Name
-		CHAR szCommandParam1[MAX_STRING] = { 0 };
+		char szCommandParam1[MAX_STRING] = { 0 };
 		GetArg(szCommandParam1, Index, 1, 1);
 
-		PMQ2TYPEMEMBER pMember = MQ2ShellCmdType::FindMember(Member);
-		if (!pMember) return FALSE;
+		MQTypeMember* pMember = MQ2ShellCmdType::FindMember(Member);
+		if (!pMember) return false;
 
 		// Check if we even have a process named this
 		if (KnightlyShellCmd::ProcessHandling::UpdateStatus(szCommandParam1))
 		{
 			KnightlyShellCmd::Log::Debug("Found the process: " + std::string(szCommandParam1));
 			// Find out what we're supposed to do
-			switch ((Members)pMember->ID) {
+			switch (pMember->ID) {
 				case Command:
-				case command:
 					// Command tells you what command was run and returns a string
-					Dest.Type = pStringType;
+					Dest.Type = mq::datatypes::pStringType;
 					// Copy the command into the buffer, but limit it to the size of the buffer
 					strncpy_s(_szBuffer, KnightlyShellCmd::StringManip::ReplaceAll(KnightlyShellCmd::ProcessTracker[szCommandParam1].strCommand, "\\", "\\\\").c_str(), _TRUNCATE);
 					Dest.Ptr = &_szBuffer[0];
-					return TRUE;
+					return true;
 				case Full:
-				case full:
 					// Full tells you the modified command that was run and returns a string
-					Dest.Type = pStringType;
+					Dest.Type = mq::datatypes::pStringType;
 					// Copy the command into the buffer, but limit it to the size of the buffer.  Escape the string so it will display
 					strncpy_s(_szBuffer, KnightlyShellCmd::StringManip::ReplaceAll(KnightlyShellCmd::ProcessTracker[szCommandParam1].strFullCommand, "\\", "\\\\").c_str(), _TRUNCATE);
 					Dest.Ptr = &_szBuffer[0];
-					return TRUE;
+					return true;
 				case Status:
-				case status:
 					KnightlyShellCmd::Log::Debug("Status TLO was requested for: " + std::string(szCommandParam1));
 					// Status tells you the current status of the command and returns a string
-					Dest.Type = pStringType;
+					Dest.Type = mq::datatypes::pStringType;
 					// The status is the status... (limit it to the size of the buffer)
 					strncpy_s(_szBuffer, KnightlyShellCmd::ProcessTracker[szCommandParam1].strStatus.c_str(), _TRUNCATE);
 					Dest.Ptr = &_szBuffer[0];
-					return TRUE;
+					return true;
 				case Kill:
-				case kill:
+				{
 					KnightlyShellCmd::Log::Debug("Issuing Kill Command");
-					Dest.Type = pBoolType;
+					Dest.Type = mq::datatypes::pBoolType;
 					bool bProcessTerm = TerminateProcess(KnightlyShellCmd::ProcessTracker[szCommandParam1].piProcessInfo.hProcess, 0);
 					// If we closed the process or the process has already closed then close the handles
 					if (bProcessTerm || KnightlyShellCmd::ProcessTracker[szCommandParam1].strStatus.substr(0, 4) == "Exit")
@@ -331,33 +325,34 @@ public:
 						KnightlyShellCmd::ProcessTracker.erase(szCommandParam1);
 					}
 					Dest.Int = bProcessTerm;
-					return TRUE;
+					return true;
+				}
+				default:
+					return false;
 			}
-			// If we made it here return false
-			return FALSE;
 		}
 		// Otherwise we don't have a Process tracker for this.
 		else {
 			KnightlyShellCmd::Log::Warning("No process found.  Did you name the command '" + std::string(szCommandParam1) + "'?");
-			Dest.Type = pBoolType;
-			Dest.Int = FALSE;
-			return TRUE;
+			Dest.Type = mq::datatypes::pBoolType;
+			Dest.Int = false;
+			return true;
 		}
 	}
 
-	bool FromData(MQ2VARPTR &VarPtr, MQ2TYPEVAR &Source) { return FALSE; }
-	bool FromString(MQ2VARPTR &VarPtr, char* Source) { return FALSE; }
+	bool FromData(MQVarPtr& VarPtr, MQTypeVar& Source) { return false; }
+	virtual bool FromString(MQVarPtr& VarPtr, const char* Source) override { return false; }
 };
 
-BOOL ShellCmdData(PCHAR szIndex, MQ2TYPEVAR &Dest)
+bool ShellCmdData(const char* szIndex, MQTypeVar& Dest)
 {
 	Dest.DWord = 1;
 	Dest.Type = pShellCmdType;
-	return TRUE;
+	return true;
 }
 
 // Called once, when the plugin is to initialize
-PLUGIN_API VOID InitializePlugin(VOID)
+PLUGIN_API void InitializePlugin()
 {
 	DebugSpewAlways("Initializing MQ2ShellCmd");
 	// Add /cmd
@@ -368,7 +363,7 @@ PLUGIN_API VOID InitializePlugin(VOID)
 }
 
 // Called once, when the plugin is to shutdown
-PLUGIN_API VOID ShutdownPlugin(VOID)
+PLUGIN_API void ShutdownPlugin()
 {
 	DebugSpewAlways("Shutting down MQ2ShellCmd");
 
