@@ -1,11 +1,11 @@
 // MQ2ShellCmd.cpp : Defines the entry point for the DLL application.
 //
 
-// This plugin allows you to issue a shell command from within EQ. (A shell command 
+// This plugin allows you to issue a shell command from within EQ. (A shell command
 // just meaning something you could run from the command prompt and it would work.)
 //
-// It keeps track of the process by letting you assign a name to it and allows you 
-// to report on the status.  If you run two processes with the same name, it does 
+// It keeps track of the process by letting you assign a name to it and allows you
+// to report on the status.  If you run two processes with the same name, it does
 // not kill the previous process and only the new process will be tracked.
 
 #include <iostream>
@@ -179,7 +179,7 @@ PLUGIN_API void CmdCommand(SPAWNINFO* pSpawn, char* szLine)
 	char szParam1[MAX_STRING] = { 0 };
 	char szParam2[MAX_STRING] = { 0 };
 
-	const std::string strLine = szLine; 
+	const std::string strLine = szLine;
 	std::string strCmdCommand;
 	// Put the first parameter in szParam1, include quotes
 	GetArg(szParam1, szLine, 1, 1);
@@ -225,7 +225,7 @@ PLUGIN_API void CmdCommand(SPAWNINFO* pSpawn, char* szLine)
 					false,              // Set handle inheritance to FALSE
 					CREATE_NEW_CONSOLE, // Creation Flags - Create a new console window instead of running in the existing console
 					nullptr,            // Use parent's environment block
-					nullptr,            // Use parent's starting directory 
+					nullptr,            // Use parent's starting directory
 					&KnightlyShellCmd::ProcessTracker[strProcessName].siStartupInfo,  // Pointer to STARTUPINFO structure
 					&KnightlyShellCmd::ProcessTracker[strProcessName].piProcessInfo)  // Pointer to PROCESS_INFORMATION structure
 					)
@@ -339,9 +339,6 @@ public:
 			return true;
 		}
 	}
-
-	bool FromData(MQVarPtr& VarPtr, MQTypeVar& Source) { return false; }
-	virtual bool FromString(MQVarPtr& VarPtr, const char* Source) override { return false; }
 };
 
 bool ShellCmdData(const char* szIndex, MQTypeVar& Dest)
